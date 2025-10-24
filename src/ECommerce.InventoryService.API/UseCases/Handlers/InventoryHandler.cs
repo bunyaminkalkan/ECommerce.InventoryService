@@ -1,4 +1,6 @@
-﻿using ECommerce.BuildingBlocks.Shared.Kernel.Exceptions;
+﻿using ECommerce.BuildingBlocks.EventBus.Base.Abstractions;
+using ECommerce.BuildingBlocks.EventBus.Base.Events.Inventories;
+using ECommerce.BuildingBlocks.Shared.Kernel.Exceptions;
 using ECommerce.InventoryService.API.Data.Context;
 using ECommerce.InventoryService.API.Domain.Entities;
 using ECommerce.InventoryService.API.UseCases.Commands;
@@ -9,7 +11,7 @@ using Space.Abstraction.Context;
 
 namespace ECommerce.InventoryService.API.UseCases.Handlers;
 
-public class InventoryHandler(AppDbContext appDbContext)
+public class InventoryHandler(AppDbContext appDbContext, IEventBus eventBus)
 {
     [Handle]
     public async Task<ProductStock> AdjustStockAsync(HandlerContext<AdjustStockCommand> ctx)
@@ -24,6 +26,8 @@ public class InventoryHandler(AppDbContext appDbContext)
             stock.Decrease(Math.Abs(request.QuantityChange));
         else
             stock.Increase(request.QuantityChange);
+
+        await eventBus.PublishAsync(new StockUpdatedIntegrationEvent(stock.ProductId, request.QuantityChange), ctx.CancellationToken);
 
         await appDbContext.SaveChangesAsync();
 
